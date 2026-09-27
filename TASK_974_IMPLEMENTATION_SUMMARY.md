@@ -6,7 +6,7 @@ This implementation adds comprehensive adversarial test coverage for the `get_sc
 ## Changes Made
 
 ### 1. New Test File: `test_get_schema_version.rs`
-Created a dedicated test module with **30 comprehensive test cases** covering:
+Created a dedicated test module with **25 comprehensive test cases** covering:
 
 #### Basic Happy Path Tests (4 tests)
 - `test_get_schema_version_after_init` - Verifies correct version after initialization
@@ -20,7 +20,7 @@ Created a dedicated test module with **30 comprehensive test cases** covering:
 - `test_get_schema_version_max_u32` - Maximum u32 value handling
 - `test_get_schema_version_one` - Version 1 handling
 
-#### Migration Scenario Tests (4 tests)
+#### Migration Scenario Tests (3 tests)
 - `test_get_schema_version_after_migration_from_instance_to_persistent` - Post-migration state
 - `test_get_schema_version_both_storages_during_migration` - Concurrent storage states
 - `test_get_schema_version_stale_instance_after_migration` - Stale data handling
@@ -35,7 +35,7 @@ Created a dedicated test module with **30 comprehensive test cases** covering:
 - `test_get_schema_version_no_auth_required` - No authorization needed
 - `test_get_schema_version_callable_by_anyone` - Public access verification
 
-#### Edge Case Tests (9 tests)
+#### Edge Case Tests (7 tests)
 - `test_get_schema_version_all_valid_versions` - Tests versions 0-6
 - `test_get_schema_version_version_greater_than_storage_version` - Future version handling
 - `test_get_schema_version_consistent_across_ledger_time` - Time independence
@@ -96,7 +96,7 @@ mod test_get_schema_version;
 ## Acceptance Criteria Met
 
 ✅ **Cover the named behavior with focused automated tests**
-- 30 comprehensive test cases added
+- 25 comprehensive test cases added
 
 ✅ **Exercise valid calls, invalid or boundary values for env: &Env**
 - All boundary values tested (0, 1, u32::MAX, all valid versions)
@@ -124,15 +124,14 @@ cargo test test_get_schema_version --lib
 ```
 
 ### Expected Output
-All 30 tests should pass:
+All 25 tests should pass:
 - 4 happy path tests
 - 4 boundary value tests
-- 4 migration scenario tests
+- 3 migration scenario tests
 - 3 state isolation tests
 - 2 authorization tests
-- 9 edge case tests
+- 7 edge case tests
 - 2 integration tests
-- 2 storage cleanup tests
 
 ## Files Modified
 

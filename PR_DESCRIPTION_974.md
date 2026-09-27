@@ -18,7 +18,7 @@ The function lacked focused tests exercising:
 - Edge cases (uninitialized contract, removed storage)
 
 ## Solution
-Added `test_get_schema_version.rs` with **30 comprehensive test cases** organized into 8 categories:
+Added `test_get_schema_version.rs` with **25 comprehensive test cases** organized into 7 categories:
 
 ### Test Coverage
 
@@ -34,7 +34,7 @@ Added `test_get_schema_version.rs` with **30 comprehensive test cases** organize
 - ✅ Handles u32::MAX correctly
 - ✅ Handles version 1 correctly
 
-#### 3. Migration Scenario Tests (4 tests)
+#### 3. Migration Scenario Tests (3 tests)
 - ✅ Correct behavior after instance→persistent migration
 - ✅ Prioritizes persistent during concurrent storage states
 - ✅ Overrides stale instance data with persistent version
@@ -49,7 +49,7 @@ Added `test_get_schema_version.rs` with **30 comprehensive test cases** organize
 - ✅ No authorization required (correct for read-only function)
 - ✅ Callable by anyone from any context
 
-#### 6. Edge Case Tests (9 tests)
+#### 6. Edge Case Tests (7 tests)
 - ✅ All valid historical versions (0-6)
 - ✅ Future versions (STORAGE_VERSION + n) for downgrade detection
 - ✅ Consistent behavior across ledger timestamps
@@ -62,14 +62,10 @@ Added `test_get_schema_version.rs` with **30 comprehensive test cases** organize
 - ✅ `read_config` uses version < 3 for instance fallback
 - ✅ `read_config` skips instance fallback for version ≥ 3
 
-#### 8. Storage Cleanup Tests (2 tests)
-- ✅ Works after cleanup during migration
-- ✅ Handles partial cleanup scenarios
-
 ## Acceptance Criteria
 
 ### ✅ Cover the named behavior with focused automated tests
-**30 test cases** covering all aspects of `get_schema_version`:
+**25 test cases** covering all aspects of `get_schema_version`:
 - Storage tier resolution logic
 - Default value behavior
 - Migration compatibility
@@ -124,9 +120,9 @@ test test_get_schema_version::test_get_schema_version_after_init ... ok
 test test_get_schema_version::test_get_schema_version_persistent_storage_priority ... ok
 test test_get_schema_version::test_get_schema_version_instance_fallback ... ok
 test test_get_schema_version::test_get_schema_version_default_zero ... ok
-[... 26 more tests ...]
+[... 21 more tests ...]
 
-test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 ```
 
 ### Lint & Type Checks
