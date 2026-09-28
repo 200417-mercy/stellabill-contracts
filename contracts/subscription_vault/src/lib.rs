@@ -3620,6 +3620,8 @@ mod test_usage_limits_required;
 #[cfg(test)]
 mod test_charge_invariants;
 #[cfg(test)]
+mod test_charge_core_adversarial;
+#[cfg(test)]
 mod test_metadata_signed;
 
 #[cfg(test)]
