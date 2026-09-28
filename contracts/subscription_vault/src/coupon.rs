@@ -299,11 +299,24 @@ pub fn validate_coupon_for_charge(
 /// 2. Fixed discount applied to the result of step 1.
 /// 3. Payable amount is clamped to `[0, gross]`.
 pub fn compute_discount(gross: i128, coupon: &Coupon) -> i128 {
+    // A non-positive gross carries no discount. Clamping up front keeps the
+    // documented invariant (`0 <= discount <= gross`) true for every i128,
+    // including the negative boundary.
+    let gross = gross.max(0);
+
     // Step 1 — percentage
     let after_pct = if coupon.percent_off_bps > 0 {
-        let remaining_bps = 10_000i128 - coupon.percent_off_bps as i128;
-        // Integer floor division: mirrors the protocol-fee pattern.
-        gross * remaining_bps / 10_000i128
+        // `percent_off_bps` is validated by `create_coupon`, but `compute_discount`
+        // is public: clamp so an out-of-band value can neither overflow the
+        // intermediate product nor invert the discount direction.
+        let remaining_bps = (10_000i128 - coupon.percent_off_bps as i128).clamp(0, 10_000);
+        // Integer floor division, expanded as
+        //   floor(gross / 10_000) * bps + floor((gross % 10_000) * bps / 10_000)
+        // which is algebraically identical but never materialises `gross * bps`,
+        // so a large `gross` cannot overflow i128.
+        let whole = gross / 10_000i128;
+        let remainder = gross % 10_000i128;
+        whole * remaining_bps + remainder * remaining_bps / 10_000i128
     } else {
         gross
     };
