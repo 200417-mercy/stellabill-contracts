@@ -3690,3 +3690,7 @@ mod test_protocol_fee_routing;
 mod test_treasury_split;
 #[cfg(test)]
 mod test_operator;
+
+// Adversarial coverage for `set_oracle_config` (issue #1105).
+#[cfg(test)]
+mod set_oracle_config_adversarial;
