@@ -3656,6 +3656,8 @@ mod test_bulk_admin_ops;
 
 #[cfg(test)]
 mod test_auto_pause;
+#[cfg(test)]
+mod test_auto_pause_threshold;
 
 #[cfg(test)]
 mod test_grace_buyout;
