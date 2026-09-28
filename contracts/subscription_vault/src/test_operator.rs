@@ -35,6 +35,28 @@ fn make_funded_subscription(te: &TestEnv, subscriber: &Address, merchant: &Addre
     sub_id
 }
 
+fn make_usage_enabled_subscription(
+    te: &TestEnv,
+    subscriber: &Address,
+    merchant: &Address,
+) -> u32 {
+    let sub_id = te.client.create_subscription(
+        subscriber,
+        merchant,
+        &AMOUNT,
+        &INTERVAL,
+        &true,
+        &None,
+        &None::<u64>,
+        &None::<u32>,
+        &None::<soroban_sdk::Symbol>,
+    );
+    te.stellar_token_client().mint(subscriber, &DEPOSIT);
+    te.client
+        .deposit_funds(&sub_id, subscriber, &DEPOSIT, &None::<soroban_sdk::BytesN<32>>);
+    sub_id
+}
+
 // ── set_operator ─────────────────────────────────────────────────────────────
 
 #[test]
@@ -387,28 +409,19 @@ fn operator_charge_usage_succeeds() {
     let merchant = Address::generate(&te.env);
     let operator = Address::generate(&te.env);
 
-    // Create a usage-enabled subscription.
-    let sub_id = te.client.create_subscription(
-        &subscriber,
-        &merchant,
-        &AMOUNT,
-        &INTERVAL,
-        &true, // usage_enabled
-        &None,
-        &None::<u64>,
-        &None::<u32>,
-            &None::<soroban_sdk::Symbol>,
-);
-    te.stellar_token_client().mint(&subscriber, &DEPOSIT);
-    te.client.deposit_funds(&sub_id, &subscriber, &DEPOSIT, &None::<soroban_sdk::BytesN<32>>);
+    let sub_id = make_usage_enabled_subscription(&te, &subscriber, &merchant);
 
     te.client.set_operator(&te.admin, &operator);
 
     let usage = 1_000_000i128;
-    te.client.operator_charge_usage(&operator, &sub_id, &usage);
+    assert_eq!(
+        te.client.operator_charge_usage(&operator, &sub_id, &usage),
+        crate::UsageChargeResult::Charged
+    );
 
     let sub = te.client.get_subscription(&sub_id);
     assert_eq!(sub.prepaid_balance, DEPOSIT - usage);
+    assert_eq!(sub.lifetime_charged, usage);
 }
 
 #[test]
@@ -419,24 +432,98 @@ fn operator_charge_usage_wrong_operator_rejected() {
     let operator = Address::generate(&te.env);
     let stranger = Address::generate(&te.env);
 
-    let sub_id = te.client.create_subscription(
-        &subscriber,
-        &merchant,
-        &AMOUNT,
-        &INTERVAL,
-        &true,
-        &None,
-        &None::<u64>,
-        &None::<u32>,
-            &None::<soroban_sdk::Symbol>,
-);
-    te.stellar_token_client().mint(&subscriber, &DEPOSIT);
-    te.client.deposit_funds(&sub_id, &subscriber, &DEPOSIT, &None::<soroban_sdk::BytesN<32>>);
+    let sub_id = make_usage_enabled_subscription(&te, &subscriber, &merchant);
 
     te.client.set_operator(&te.admin, &operator);
 
+    let before = te.client.get_subscription(&sub_id);
     let result = te.client.try_operator_charge_usage(&stranger, &sub_id, &1_000_000i128);
-    assert!(result.is_err());
+    assert_eq!(result, Err(Ok(Error::Unauthorized)));
+    let after = te.client.get_subscription(&sub_id);
+    assert_eq!(after.prepaid_balance, before.prepaid_balance);
+    assert_eq!(after.lifetime_charged, before.lifetime_charged);
+    assert_eq!(after.status, before.status);
+}
+
+#[test]
+fn operator_charge_usage_rejects_nonpositive_amounts_without_mutation() {
+    let te = TestEnv::default();
+    let subscriber = Address::generate(&te.env);
+    let merchant = Address::generate(&te.env);
+    let operator = Address::generate(&te.env);
+    let sub_id = make_usage_enabled_subscription(&te, &subscriber, &merchant);
+    te.client.set_operator(&te.admin, &operator);
+
+    let before = te.client.get_subscription(&sub_id);
+    for usage in [i128::MIN, -1, 0] {
+        assert_eq!(
+            te.client
+                .try_operator_charge_usage(&operator, &sub_id, &usage),
+            Err(Ok(Error::InvalidAmount))
+        );
+        let after = te.client.get_subscription(&sub_id);
+        assert_eq!(after.prepaid_balance, before.prepaid_balance);
+        assert_eq!(after.lifetime_charged, before.lifetime_charged);
+        assert_eq!(after.status, before.status);
+    }
+}
+
+#[test]
+fn operator_charge_usage_rejects_unknown_subscription_without_mutation() {
+    let te = TestEnv::default();
+    let subscriber = Address::generate(&te.env);
+    let merchant = Address::generate(&te.env);
+    let operator = Address::generate(&te.env);
+    let sub_id = make_usage_enabled_subscription(&te, &subscriber, &merchant);
+    te.client.set_operator(&te.admin, &operator);
+
+    let before = te.client.get_subscription(&sub_id);
+    let result = te
+        .client
+        .try_operator_charge_usage(&operator, &u32::MAX, &1_000_000i128);
+    assert_eq!(result, Err(Ok(Error::NotFound)));
+    let after = te.client.get_subscription(&sub_id);
+    assert_eq!(after.prepaid_balance, before.prepaid_balance);
+    assert_eq!(after.lifetime_charged, before.lifetime_charged);
+    assert_eq!(after.status, before.status);
+}
+
+#[test]
+fn operator_charge_usage_rejects_amount_above_balance_without_mutation() {
+    let te = TestEnv::default();
+    let subscriber = Address::generate(&te.env);
+    let merchant = Address::generate(&te.env);
+    let operator = Address::generate(&te.env);
+    let sub_id = make_usage_enabled_subscription(&te, &subscriber, &merchant);
+    te.client.set_operator(&te.admin, &operator);
+
+    let before = te.client.get_subscription(&sub_id);
+    let result = te
+        .client
+        .try_operator_charge_usage(&operator, &sub_id, &i128::MAX);
+    assert_eq!(result, Err(Ok(Error::InsufficientPrepaidBalance)));
+    let after = te.client.get_subscription(&sub_id);
+    assert_eq!(after.prepaid_balance, before.prepaid_balance);
+    assert_eq!(after.lifetime_charged, before.lifetime_charged);
+    assert_eq!(after.status, before.status);
+}
+
+#[test]
+fn operator_charge_usage_accepts_exact_prepaid_balance() {
+    let te = TestEnv::default();
+    let subscriber = Address::generate(&te.env);
+    let merchant = Address::generate(&te.env);
+    let operator = Address::generate(&te.env);
+    let sub_id = make_usage_enabled_subscription(&te, &subscriber, &merchant);
+    te.client.set_operator(&te.admin, &operator);
+
+    assert_eq!(
+        te.client.operator_charge_usage(&operator, &sub_id, &DEPOSIT),
+        crate::UsageChargeResult::Charged
+    );
+    let after = te.client.get_subscription(&sub_id);
+    assert_eq!(after.prepaid_balance, 0);
+    assert_eq!(after.lifetime_charged, DEPOSIT);
 }
 
 // ── Revocation (remove_operator revokes access immediately) ───────────────────
