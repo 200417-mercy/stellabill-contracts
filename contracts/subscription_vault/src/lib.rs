@@ -3659,6 +3659,8 @@ mod test_auto_pause;
 
 #[cfg(test)]
 mod test_grace_buyout;
+#[cfg(test)]
+mod test_get_buyout_premium_bps;
 
 #[cfg(test)]
 mod test_subscription_transfer;
