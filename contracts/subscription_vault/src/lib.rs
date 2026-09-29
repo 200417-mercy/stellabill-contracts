@@ -3453,6 +3453,8 @@ mod test_abi_validators_integration;
 mod test_remove_guardian;
 #[cfg(test)]
 mod test_coupon;
+#[cfg(test)]
+mod test_compute_discount_adversarial;
 
 #[cfg(test)]
 mod test_admin_rotation_two_step;
