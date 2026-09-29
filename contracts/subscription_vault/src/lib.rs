@@ -3443,6 +3443,8 @@ mod test_merchant_full_drain;
 
 #[cfg(test)]
 mod test_validation;
+#[cfg(test)]
+mod test_admin_require_auth_adversarial;
 
 #[cfg(test)]
 mod test_emergency_withdraw;
