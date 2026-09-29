@@ -3519,6 +3519,9 @@ mod test_admin_treasury_change;
 mod test_operator;
 
 #[cfg(test)]
+mod test_do_charge_subscription;
+
+#[cfg(test)]
 mod test_blocklist_is_blocklisted;
 
 #[cfg(test)]
