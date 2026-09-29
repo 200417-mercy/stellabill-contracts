@@ -3652,6 +3652,9 @@ mod test_abi_validators_integration;
 mod test_coupon;
 
 #[cfg(test)]
+mod test_admin_rotation_two_step;
+
+#[cfg(test)]
 mod test_bulk_admin_ops;
 
 #[cfg(test)]
