@@ -3519,6 +3519,68 @@ mod test_admin_treasury_change;
 mod test_operator;
 
 #[cfg(test)]
+mod revoke_merchant_adversarial_tests {
+    use super::{Error, SubscriptionVault, SubscriptionVaultClient};
+    use soroban_sdk::testutils::Address as _;
+    use soroban_sdk::{Address, Env};
+
+    fn setup() -> (Env, SubscriptionVaultClient<'static>, Address) {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(SubscriptionVault, ());
+        let client = SubscriptionVaultClient::new(&env, &contract_id);
+        let admin = Address::generate(&env);
+        let token = env
+            .register_stellar_asset_contract_v2(admin.clone())
+            .address();
+        client.init(&token, &6, &admin, &1_000_000i128, &(7 * 24 * 60 * 60));
+        (env, client, admin)
+    }
+
+    #[test]
+    fn admin_revokes_approval_and_repeated_revoke_is_stable() {
+        let (env, client, admin) = setup();
+        let merchant = Address::generate(&env);
+        client.approve_merchant(&admin, &merchant);
+        assert!(client.is_merchant_approved(&merchant));
+
+        client.revoke_merchant(&admin, &merchant);
+        assert!(!client.is_merchant_approved(&merchant));
+
+        client.revoke_merchant(&admin, &merchant);
+        assert!(!client.is_merchant_approved(&merchant));
+    }
+
+    #[test]
+    fn wrong_admin_cannot_revoke_or_change_approval() {
+        let (env, client, admin) = setup();
+        let merchant = Address::generate(&env);
+        let wrong_admin = Address::generate(&env);
+        client.approve_merchant(&admin, &merchant);
+
+        assert_eq!(
+            client.try_revoke_merchant(&wrong_admin, &merchant),
+            Err(Ok(Error::Forbidden))
+        );
+        assert!(client.is_merchant_approved(&merchant));
+    }
+
+    #[test]
+    fn revoke_in_uninitialized_environment_fails_without_approval_state() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(SubscriptionVault, ());
+        let client = SubscriptionVaultClient::new(&env, &contract_id);
+        let admin = Address::generate(&env);
+        let merchant = Address::generate(&env);
+
+        assert_eq!(
+            client.try_revoke_merchant(&admin, &merchant),
+            Err(Ok(Error::NotInitialized))
+        );
+        assert!(!client.is_merchant_approved(&merchant));
+    }
+}
 mod test_do_charge_subscription;
 
 #[cfg(test)]
