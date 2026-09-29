@@ -3450,6 +3450,8 @@ mod test_emergency_withdraw;
 #[cfg(test)]
 mod test_abi_validators_integration;
 #[cfg(test)]
+mod test_remove_guardian;
+#[cfg(test)]
 mod test_coupon;
 
 #[cfg(test)]
