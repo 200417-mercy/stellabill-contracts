@@ -16,7 +16,7 @@ use crate::{
     charge_core::{charge_one, charge_usage_one},
     ChargeExecutionResult,
 };
-use soroban_sdk::{token, Address, Env, String, Symbol, Vec};
+use soroban_sdk::{token, Address, Bytes, Env, String, Symbol, Vec};
 
 pub fn get_schema_version(env: &Env) -> u32 {
     if let Some(v) = env

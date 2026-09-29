@@ -495,9 +495,9 @@ fn coupon_redemption_fails_at_exact_expiry_time() {
     let subscriber = Address::generate(&env);
     let code = Symbol::new(&env, "EXACT_EXPIRY");
 
+    env.ledger().set_timestamp(1_000);
     let now = env.ledger().timestamp();
-    // Set expiry to current timestamp (expires immediately)
-    let expires_at = now;
+    let expires_at = now + 100;
 
     client
         .mock_all_auths()
@@ -506,6 +506,9 @@ fn coupon_redemption_fails_at_exact_expiry_time() {
     let sub_id = client
         .mock_all_auths()
         .create_subscription(&subscriber, &merchant, &1000, &86400, &false, &None::<i128>, &None::<u64>, &None::<u32>, &None::<soroban_sdk::Symbol>);
+
+    // Advance time to exactly expiry time
+    env.ledger().set_timestamp(expires_at);
 
     // Redemption fails when timestamp == expires_at (contract uses >= check)
     let result = client.try_apply_coupon(&subscriber, &sub_id, &code);
@@ -589,6 +592,7 @@ fn coupon_creation_rejects_expiry_in_the_past() {
     let merchant = Address::generate(&env);
     let code = Symbol::new(&env, "PAST_EXPIRY");
 
+    env.ledger().set_timestamp(1_000);
     let now = env.ledger().timestamp();
     // Try to create coupon with expiry in the past
     let past_expiry = now - 100;
@@ -607,6 +611,7 @@ fn coupon_creation_rejects_expiry_at_current_time() {
     let merchant = Address::generate(&env);
     let code = Symbol::new(&env, "NOW_EXPIRY");
 
+    env.ledger().set_timestamp(1_000);
     let now = env.ledger().timestamp();
     // Try to create coupon with expiry at current time
     let current_expiry = now;
