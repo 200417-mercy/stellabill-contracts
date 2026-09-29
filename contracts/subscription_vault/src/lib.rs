@@ -3476,6 +3476,9 @@ mod test_auto_pause_threshold;
 mod test_admin_auto_pause_threshold;
 
 #[cfg(test)]
+mod test_admin_get_token;
+
+#[cfg(test)]
 mod test_grace_buyout;
 #[cfg(test)]
 mod test_get_buyout_premium_bps;
