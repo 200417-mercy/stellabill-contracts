@@ -958,6 +958,134 @@ pub fn get_auto_pause_threshold(env: &Env) -> u32 {
         .unwrap_or(0u32)
 }
 
+#[cfg(test)]
+mod rotate_admin_adversarial_tests {
+    use crate::{types::DataKey, Error, SubscriptionVault, SubscriptionVaultClient};
+    use soroban_sdk::{
+        testutils::{Address as _, Ledger as _},
+        Address, Env,
+    };
+
+    fn setup() -> (Env, SubscriptionVaultClient<'static>, Address) {
+        let env = Env::default();
+        env.mock_all_auths();
+        env.ledger().set_timestamp(1_000_000);
+
+        let contract_id = env.register(SubscriptionVault, ());
+        let client = SubscriptionVaultClient::new(&env, &contract_id);
+        let admin = Address::generate(&env);
+        let token = env
+            .register_stellar_asset_contract_v2(admin.clone())
+            .address();
+        client.init(&token, &6, &admin, &1_000_000i128, &(7 * 24 * 60 * 60));
+
+        (env, client, admin)
+    }
+
+    fn admin_nonce(env: &Env, contract_id: &Address, signer: &Address) -> u64 {
+        env.as_contract(contract_id, || {
+            crate::nonce::get_nonce(env, signer, crate::nonce::DOMAIN_ADMIN_ROTATION)
+        })
+    }
+
+    #[test]
+    fn successful_rotation_updates_admin_and_consumes_nonce() {
+        let (env, client, admin) = setup();
+        let new_admin = Address::generate(&env);
+
+        client.rotate_admin(&admin, &new_admin, &0);
+
+        assert_eq!(client.get_admin(), new_admin);
+        assert_eq!(admin_nonce(&env, &client.address, &admin), 1);
+    }
+
+    #[test]
+    fn rejected_callers_and_targets_leave_nonce_available() {
+        let (env, client, admin) = setup();
+        let stranger = Address::generate(&env);
+        let new_admin = Address::generate(&env);
+
+        assert_eq!(
+            client.try_rotate_admin(&stranger, &new_admin, &0),
+            Err(Ok(Error::Forbidden))
+        );
+        assert_eq!(client.get_admin(), admin);
+        assert_eq!(admin_nonce(&env, &client.address, &admin), 0);
+
+        assert_eq!(
+            client.try_rotate_admin(&admin, &admin, &0),
+            Err(Ok(Error::SelfRotation))
+        );
+        assert_eq!(
+            client.try_rotate_admin(&admin, &client.address, &0),
+            Err(Ok(Error::InvalidNewAdmin))
+        );
+        assert_eq!(client.get_admin(), admin);
+        assert_eq!(admin_nonce(&env, &client.address, &admin), 0);
+
+        client.rotate_admin(&admin, &new_admin, &0);
+        assert_eq!(client.get_admin(), new_admin);
+    }
+
+    #[test]
+    fn skipped_nonce_is_rejected_without_changing_state() {
+        let (env, client, admin) = setup();
+        let new_admin = Address::generate(&env);
+
+        assert_eq!(
+            client.try_rotate_admin(&admin, &new_admin, &1),
+            Err(Ok(Error::NonceAlreadyUsed))
+        );
+        assert_eq!(client.get_admin(), admin);
+        assert_eq!(admin_nonce(&env, &client.address, &admin), 0);
+
+        client.rotate_admin(&admin, &new_admin, &0);
+        assert_eq!(client.get_admin(), new_admin);
+    }
+
+    #[test]
+    fn maximum_nonce_overflow_does_not_change_admin_or_nonce() {
+        let (env, client, admin) = setup();
+        let contract_id = client.address.clone();
+        env.as_contract(&contract_id, || {
+            env.storage().persistent().set(
+                &DataKey::AdminNonce(admin.clone(), crate::nonce::DOMAIN_ADMIN_ROTATION),
+                &u64::MAX,
+            );
+        });
+        let new_admin = Address::generate(&env);
+
+        assert_eq!(
+            client.try_rotate_admin(&admin, &new_admin, &u64::MAX),
+            Err(Ok(Error::Overflow))
+        );
+        assert_eq!(client.get_admin(), admin);
+        assert_eq!(admin_nonce(&env, &client.address, &admin), u64::MAX);
+    }
+
+    #[test]
+    fn cooldown_rejection_rolls_back_nonce_and_allows_retry_after_boundary() {
+        let (env, client, admin) = setup();
+        let next_admin = Address::generate(&env);
+        let final_admin = Address::generate(&env);
+
+        client.rotate_admin(&admin, &next_admin, &0);
+        assert_eq!(client.get_admin(), next_admin);
+
+        assert_eq!(
+            client.try_rotate_admin(&next_admin, &final_admin, &0),
+            Err(Ok(Error::CooldownActive))
+        );
+        assert_eq!(client.get_admin(), next_admin);
+        assert_eq!(admin_nonce(&env, &client.address, &next_admin), 0);
+
+        env.ledger().set_timestamp(1_000_000 + CONFIG_COOLDOWN_SECS);
+        client.rotate_admin(&next_admin, &final_admin, &0);
+        assert_eq!(client.get_admin(), final_admin);
+        assert_eq!(admin_nonce(&env, &client.address, &next_admin), 1);
+    }
+}
+
 // ── Schema migration ──────────────────────────────────────────────────────────
 
 pub fn rewrite_subscriptions_for_ledger_expiration(env: &Env) -> u32 {
