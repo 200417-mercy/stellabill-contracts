@@ -3632,6 +3632,8 @@ mod test_scheduled_cancel;
 #[cfg(test)]
 mod test_subscriber_active_cap;
 #[cfg(test)]
+mod test_subscriber_create_cap;
+#[cfg(test)]
 mod test_statement_compaction;
 
 #[cfg(test)]
