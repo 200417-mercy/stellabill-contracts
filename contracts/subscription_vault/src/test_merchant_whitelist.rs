@@ -1,6 +1,7 @@
+use crate::types::{MerchantWhitelistModeEvent, EVENT_SCHEMA_VERSION};
 use crate::{Error, SubscriptionVault, SubscriptionVaultClient};
-use soroban_sdk::testutils::Address as _;
-use soroban_sdk::{Address, Env};
+use soroban_sdk::testutils::{Address as _, Events as _, Ledger as _};
+use soroban_sdk::{Address, Env, Symbol, TryFromVal, Vec};
 
 fn setup() -> (Env, SubscriptionVaultClient<'static>, Address) {
     let env = Env::default();
