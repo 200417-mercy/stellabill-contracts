@@ -3700,6 +3700,8 @@ mod test_protocol_fee_routing;
 #[cfg(test)]
 mod test_treasury_split;
 #[cfg(test)]
+mod test_admin_treasury_change;
+#[cfg(test)]
 mod test_operator;
 
 #[cfg(test)]
